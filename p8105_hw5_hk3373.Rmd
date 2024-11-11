@@ -138,3 +138,93 @@ sim_test_results |>
 The sample average of the estimate across tests for which the null is rejected 
 is approximately equal to the true mean, since the data points and plot line 
 reflect an estimated value that is close to the true mean.
+
+# Problem 3
+
+## Describe the raw data
+```{r import_raw_data}
+homicide_df = 
+  read_csv("data/homicide-data.csv") |>
+  janitor::clean_names()
+
+str(homicide_df)
+```
+
+The dataset has `r nrow(homicide_df)` rows and `r ncol(homicide_df)` columns 
+including uid, the victim's first name, last name, race, age, sex, city, state 
+and disposition as character variables, and reported date, latitude and 
+longitude as numeric variables. 
+
+## Create city_state variable
+```{r create_city_state}
+homicide_df = 
+  homicide_df |>
+  mutate(city_state = str_c(city, state, sep = ", "))
+```
+
+## Summarize within cities to obtain total number of homicides and unsolved homicides
+```{r summarize_num_homicides}
+homicide_prop_df = 
+  homicide_df |>
+  group_by(city_state) |>
+  summarize(
+    total_homicides = n(),
+    unsolved_homicides = 
+      sum(disposition %in% c("Closed without arrest", "Open/No arrest"))) 
+```
+
+## Estimate the proportion of unsolved homicides for Baltimore, MD
+```{r estimate_baltimore_proportion}
+baltimore_homicide = 
+  homicide_prop_df |>
+  filter(city_state == "Baltimore, MD") 
+
+baltimore_result_df =
+  prop.test(x = pull(baltimore_homicide, unsolved_homicides),
+            n = pull(baltimore_homicide, total_homicides)) |>
+  broom::tidy()
+```
+
+## Pull the estimated proportion and confidence intervals of Baltimore
+```{r pull_baltimore_results}
+pull(baltimore_result_df, estimate)
+pull(baltimore_result_df, conf.high)
+pull(baltimore_result_df, conf.low)
+```
+
+## Define function and run prop.test for each city in the dataset
+```{r prop_test_simulations}
+homicide_prop_test = function(city) {
+  
+  homicide_city_df = 
+      homicide_prop_df |>
+      filter(city_state == city) 
+  
+  prop_test_result = 
+    prop.test(x = pull(homicide_city_df, unsolved_homicides),
+              n = pull(homicide_city_df, total_homicides)) |>
+    broom::tidy() |>
+    select(estimate, conf.low, conf.high)
+  
+  return(prop_test_result)
+}
+
+city_prop_results = 
+  expand_grid(city = pull(homicide_prop_df, city_state)) |>
+  mutate(prop_result = map(city, homicide_prop_test)) |>
+  unnest(prop_result)
+
+city_prop_results
+```
+
+## Plot estimates and CIs for each city 
+```{r city_estimates_CIs, fig.width = 8, fig.height = 6}
+city_prop_results |>
+  ggplot(aes(y = estimate, x = reorder(city, estimate))) + 
+  geom_point() +
+  geom_errorbar(aes(ymin = conf.low, ymax = conf.high)) + 
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  labs(y = "Estimate",
+       x = "City", 
+       title = "Estimate and Confidence Intervals of Unsolved Homicides by City")
+```
