@@ -137,7 +137,8 @@ sim_test_results |>
 
 The sample average of the estimate across tests for which the null is rejected 
 is approximately equal to the true mean, since the data points and plot line 
-reflect an estimated value that is close to the true mean.
+reflect an estimated value that is close to the true mean. Also, the estimate 
+is more accurate as the true mean increases. 
 
 # Problem 3
 
@@ -187,9 +188,9 @@ baltimore_result_df =
 
 ## Pull the estimated proportion and confidence intervals of Baltimore
 ```{r pull_baltimore_results}
-pull(baltimore_result_df, estimate)
-pull(baltimore_result_df, conf.high)
-pull(baltimore_result_df, conf.low)
+baltimore_result_df |>
+  select(estimate, conf.low, conf.high) |>
+  knitr::kable()
 ```
 
 ## Define function and run prop.test for each city in the dataset
